@@ -34,3 +34,7 @@ application-local.yml
 
 # H2 Database
 data/
+
+# Docker Export
+*.tar
+*.tar.gz
