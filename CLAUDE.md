@@ -89,9 +89,57 @@ Diese Warnings sind erwartet und können ignoriert werden:
 - YAML für Konfiguration (nicht .properties)
 - Deutsche Commit-Messages erlaubt
 
+## Docker
+
+### Lokale Entwicklung
+```bash
+# Nur PostgreSQL starten
+docker-compose up postgres -d
+
+# App mit Prod-Profil starten
+mvn spring-boot:run -Dspring-boot.run.profiles=prod
+```
+
+### Komplettes Docker-Deployment
+```bash
+# Beide Container bauen und starten
+docker-compose up --build -d
+
+# Status prüfen
+docker ps
+
+# Logs anzeigen
+docker logs cte-dashboard-app
+
+# Stoppen
+docker-compose down
+```
+
+### Docker-Image exportieren (für Auslieferung)
+```bash
+docker-compose build
+docker save cte-dashboard-spring-app:latest -o cte-dashboard-app.tar
+```
+
+**Hinweis:** Dockerfile verwendet Java 23 (eclipse-temurin:23), da JDK 25 EA nicht als Docker-Image verfügbar ist. Lokal wird JDK 25 verwendet.
+
+## Deployment
+
+Siehe `DEPLOYMENT.md` für detaillierte Auslieferungsoptionen:
+- **Option 1:** Docker Image Export (tar-Datei)
+- **Option 2:** Container Registry (Docker Hub, ghcr.io)
+- **Option 3:** Source Code Auslieferung
+
 ## Erweiterungspunkte
 
 1. **Neue Batch Jobs:** In `BatchConfig.java` registrieren
 2. **Neue Entities:** Package `entity/` + Repository in `repository/`
 3. **Neue REST Endpoints:** Package `controller/`
 4. **Neue Services:** Package `service/`
+
+## Aktueller Stand (05.01.2026)
+
+- Projekt vollständig lauffähig (lokal + Docker)
+- 4 Git-Commits
+- Docker-Image exportiert: `cte-dashboard-app.tar` (145 MB)
+- Dokumentation: README.md, CLAUDE.md, DEPLOYMENT.md
