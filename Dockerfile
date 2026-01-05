@@ -1,44 +1,21 @@
 # Build Stage
-FROM ubuntu:24.04 AS builder
-
-# JDK 25 und Maven installieren
-RUN apt-get update && apt-get install -y \
-    wget \
-    maven \
-    && rm -rf /var/lib/apt/lists/*
-
-# JDK 25 EA von Adoptium herunterladen
-RUN wget -q https://download.java.net/java/early_access/jdk25/24/GPL/openjdk-25-ea+24_linux-x64_bin.tar.gz \
-    && tar -xzf openjdk-25-ea+24_linux-x64_bin.tar.gz \
-    && mv jdk-25 /opt/java \
-    && rm openjdk-25-ea+24_linux-x64_bin.tar.gz
-
-ENV JAVA_HOME=/opt/java
-ENV PATH="${JAVA_HOME}/bin:${PATH}"
+FROM eclipse-temurin:23-jdk AS builder
 
 WORKDIR /app
 
+# Maven installieren
+RUN apt-get update && apt-get install -y maven && rm -rf /var/lib/apt/lists/*
+
 # Dependencies cachen
 COPY pom.xml .
-RUN mvn dependency:go-offline -B
+RUN mvn dependency:go-offline -B || true
 
-# Build
+# Build (mit Java 23 für Docker)
 COPY src ./src
-RUN mvn clean package -DskipTests
+RUN mvn clean package -DskipTests -Dmaven.compiler.release=23
 
 # Runtime Stage
-FROM ubuntu:24.04 AS runtime
-
-# JDK 25 EA herunterladen (nur JRE-Module)
-RUN apt-get update && apt-get install -y wget && rm -rf /var/lib/apt/lists/*
-
-RUN wget -q https://download.java.net/java/early_access/jdk25/24/GPL/openjdk-25-ea+24_linux-x64_bin.tar.gz \
-    && tar -xzf openjdk-25-ea+24_linux-x64_bin.tar.gz \
-    && mv jdk-25 /opt/java \
-    && rm openjdk-25-ea+24_linux-x64_bin.tar.gz
-
-ENV JAVA_HOME=/opt/java
-ENV PATH="${JAVA_HOME}/bin:${PATH}"
+FROM eclipse-temurin:23-jre
 
 WORKDIR /app
 
