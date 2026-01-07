@@ -19,10 +19,14 @@
 |-------|--------------|
 | `pom.xml` | Maven-Konfiguration mit allen Dependencies |
 | `src/main/resources/application.yml` | Hauptkonfiguration (H2, Port 8081) |
-| `src/main/resources/application-prod.yml` | PostgreSQL-Konfiguration |
-| `DashboardApplication.java` | Spring Boot Hauptklasse |
+| `src/main/resources/application-dev.yml` | Dev-Profil (Port 8082) |
+| `src/main/resources/application-prod.yml` | Prod-Profil (PostgreSQL, Port 8083) |
+| `src/main/resources/application-test.yml` | Test-Profil (H2 Memory, Port 8084) |
+| `DashboardApplication.java` | Spring Boot Hauptklasse + Lock-Integration |
+| `ProfileLockManager.java` | Profile-Lock-System (ServerSocket) |
 | `BatchConfig.java` | Spring Batch Job/Step Definition |
 | `docker-compose.yml` | Docker Setup für PostgreSQL |
+| `run-*.cmd` | Batch-Scripts zum Starten mit Profilen |
 
 ## Architektur-Entscheidungen
 
@@ -59,21 +63,46 @@ mvn clean compile
 # Tests
 mvn test
 
-# Starten (Dev mit H2)
-mvn spring-boot:run
-
-# Starten (Prod mit PostgreSQL)
-mvn spring-boot:run -Dspring-boot.run.profiles=prod
+# Starten (via Batch-Scripts - empfohlen)
+run-default.cmd    # Default-Profil, Port 8081
+run-dev.cmd        # Dev-Profil, Port 8082
+run-prod.cmd       # Prod-Profil, Port 8083
 
 # Docker PostgreSQL
 docker-compose up postgres
 ```
 
-## Endpoints
+## Profile und Ports
 
-- **App:** http://localhost:8081
-- **Health:** http://localhost:8081/actuator/health
-- **Batch API:** http://localhost:8081/api/batch/*
+| Profil | Port | Lock-Port | Datenbank |
+|--------|------|-----------|-----------|
+| default | 8081 | 47200 | H2 File |
+| dev | 8082 | 47201 | H2 File |
+| prod | 8083 | 47202 | PostgreSQL |
+| test | 8084 | 47203 | H2 Memory |
+
+## Endpoints (Port je nach Profil)
+
+- **App:** http://localhost:{port}
+- **Health:** http://localhost:{port}/actuator/health
+- **Batch API:** http://localhost:{port}/api/batch/*
+- **H2 Console:** http://localhost:{port}/h2-console (nur dev/default)
+
+## Profile-Locking
+
+Das Projekt verwendet ein ServerSocket-basiertes Locking-System, das verhindert, dass mehrere Instanzen mit demselben Profil gleichzeitig laufen.
+
+**Funktionsweise:**
+- Jedes Profil hat einen reservierten Lock-Port (47200-47203)
+- Beim Start wird versucht, einen ServerSocket auf dem Port zu oeffnen
+- Wenn der Port belegt ist, beendet sich die Anwendung mit Fehlermeldung
+- Beim Beenden wird der Lock automatisch freigegeben
+
+**Dateien:**
+- `ProfileLockManager.java` - Lock-Logik (statische Methoden)
+- `DashboardApplication.java` - Lock-Erwerb vor Spring-Start
+
+**Hinweis:** Verschiedene Profile koennen gleichzeitig laufen (verschiedene Ports)
 
 ## Bekannte Deprecation Warnings
 
@@ -137,9 +166,11 @@ Siehe `DEPLOYMENT.md` für detaillierte Auslieferungsoptionen:
 3. **Neue REST Endpoints:** Package `controller/`
 4. **Neue Services:** Package `service/`
 
-## Aktueller Stand (05.01.2026)
+## Aktueller Stand (07.01.2026)
 
 - Projekt vollständig lauffähig (lokal + Docker)
-- 4 Git-Commits
+- Profile-Locking implementiert (verhindert parallele Instanzen mit gleichem Profil)
+- Verschiedene Ports pro Profil (8081-8084)
+- Batch-Scripts fuer einfachen Profilstart (run-*.cmd)
 - Docker-Image exportiert: `cte-dashboard-app.tar` (145 MB)
 - Dokumentation: README.md, CLAUDE.md, DEPLOYMENT.md
